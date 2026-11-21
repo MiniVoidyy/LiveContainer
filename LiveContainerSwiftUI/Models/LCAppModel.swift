@@ -392,8 +392,10 @@ class LCAppModel: ObservableObject, Hashable {
             LCSharedUtils.launchToGuestApp(withClassicMode: classicMode)
         }
         
-        // Record the launch time
+        // Record the launch time and increment launch count
         appInfo.lastLaunched = Date()
+        appInfo.launchCount = (appInfo.launchCount ?? 0) + 1
+        appInfo.save()
 
         await MainActor.run {
             isAppRunning = false
@@ -424,6 +426,21 @@ class LCAppModel: ObservableObject, Hashable {
         }
 
         return results
+    }
+
+    /// Toggle favorite state for this app. Favorites can be pinned to the top of app lists.
+    func toggleFavorite() {
+        appInfo.isFavorite.toggle()
+        appInfo.save()
+    }
+
+    var isFavorite: Bool {
+        get { appInfo.isFavorite }
+        set { appInfo.isFavorite = newValue }
+    }
+
+    var launchCount: Int {
+        appInfo.launchCount ?? 0
     }
 
     func forceResign() async throws {
@@ -608,6 +625,8 @@ class LCAppModel: ObservableObject, Hashable {
         toAppInfo.classicMode = fromApp.appInfo.classicMode
         
         toAppInfo.lastLaunched = fromApp.appInfo.lastLaunched
+        toAppInfo.launchCount = fromApp.appInfo.launchCount
+        toAppInfo.isFavorite = fromApp.appInfo.isFavorite
         
         toAppInfo.autoSaveDisabled = false
         toAppInfo.save()
