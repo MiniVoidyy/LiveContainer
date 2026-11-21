@@ -1,1 +1,1 @@
-Trigger build via push
+Trigger IPA build via push
