@@ -399,7 +399,33 @@ class LCAppModel: ObservableObject, Hashable {
             isAppRunning = false
         }
     }
-    
+
+    /// Launch multiple apps concurrently for faster startup.
+    /// Returns a dictionary mapping each app's bundle path to its launch result.
+    static func launchMultiple(_ apps: [LCAppModel]) async -> [String: Result<Void, Error>] {
+        var results: [String: Result<Void, Error>] = [:]
+
+        await withTaskGroup(of: (String, Result<Void, Error>).self) { group in
+            for app in apps {
+                group.addTask {
+                    let key = app.appInfo.relativeBundlePath ?? app.displayName
+                    do {
+                        try await app.runApp()
+                        return (key, .success(()))
+                    } catch {
+                        return (key, .failure(error))
+                    }
+                }
+            }
+
+            for await (key, result) in group {
+                results[key] = result
+            }
+        }
+
+        return results
+    }
+
     func forceResign() async throws {
         if isAppRunning {
             return
