@@ -37,7 +37,7 @@ import Intents
     }
     
     func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
-        // Handle home screen shortcut tap — launch the corresponding guest app
+        // Handle home screen shortcut tap — launch the corresponding guest app using fast path
         guard let userInfo = shortcutItem.userInfo,
               let bundlePath = userInfo["bundlePath"] as? String else {
             completionHandler(false)
@@ -50,7 +50,7 @@ import Intents
         if let appModel {
             Task {
                 do {
-                    try await appModel.runApp()
+                    try await appModel.fastLaunch()
                     completionHandler(true)
                 } catch {
                     completionHandler(false)
