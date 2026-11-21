@@ -49,6 +49,8 @@ typedef NS_ENUM(NSInteger, MultitaskSpecified){
 @property (nonatomic, strong) NSString* selected32BitEmulator;
 @property NSDate* lastLaunched;
 @property NSDate* installationDate;
+@property NSUInteger launchCount;
+@property bool isFavorite;
 @property NSString* remark;
 @property bool is32bit;
 @property(readonly) bool is32bitEmulator;
