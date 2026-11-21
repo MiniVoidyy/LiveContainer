@@ -366,6 +366,10 @@ class LCAppModel: ObservableObject, Hashable {
         }
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
         
+        // Expose per-app JIT settings so the JIT delegate can read pairing file + VPN.
+        UserDefaults.standard.set(uiPairingFilePath, forKey: "LCJITPairingFilePath")
+        UserDefaults.standard.set(uiWaitForVPN, forKey: "LCJITWaitForVPN")
+        
         // Per-app JIT: use uiIsJITEnabled when set; otherwise fall back to isJITNeeded/is32bit.
         var jitNeeded = uiIsJITEnabled ? true : (appInfo.isJITNeeded || appInfo.is32bit)
         if let forceJIT {
@@ -398,7 +402,7 @@ class LCAppModel: ObservableObject, Hashable {
                     }
                 }
             } else {
-                // Non-multitask JIT flow — pass pairing file path and waitForVPN to the delegate.
+                // Non-multitask JIT flow — pairing file path and waitForVPN are in UserDefaults for the delegate.
                 let scriptData = jitLaunchScriptJs ?? appInfo.jitLaunchScriptJs
                 if !scriptData.isEmpty {
                     await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
@@ -488,6 +492,10 @@ class LCAppModel: ObservableObject, Hashable {
         // Skip re-signing — app is already signed after installation
         UserDefaults.standard.set(self.appInfo.relativeBundlePath, forKey: "selected")
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
+
+        // Expose per-app JIT settings so the JIT delegate can read pairing file + VPN.
+        UserDefaults.standard.set(uiPairingFilePath, forKey: "LCJITPairingFilePath")
+        UserDefaults.standard.set(uiWaitForVPN, forKey: "LCJITWaitForVPN")
 
         // Per-app JIT: honor uiIsJITEnabled even for shortcut launches.
         var jitNeeded = uiIsJITEnabled ? true : (appInfo.isJITNeeded || appInfo.is32bit)
