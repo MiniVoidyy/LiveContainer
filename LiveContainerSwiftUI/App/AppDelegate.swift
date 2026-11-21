@@ -5,7 +5,6 @@ import Intents
 @objc class AppDelegate: UIResponder, UIApplicationDelegate {
         
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? ) -> Bool {
-        application.shortcutItems = nil
         UserDefaults.standard.removeObject(forKey: "LCNeedToAcquireJIT")
         
         NotificationCenter.default.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: .main) { _ in
@@ -31,7 +30,55 @@ import Intents
             LCUtils.appGroupUserDefault.setValue(UIDevice.current.buildVersion, forKey: "LCLastIOSBuildVersion")
         }
         
+        // Create dynamic home screen shortcuts for installed guest apps
+        updateShortcutItems()
+        
         return true
+    }
+    
+    func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
+        // Handle home screen shortcut tap — launch the corresponding guest app
+        guard let userInfo = shortcutItem.userInfo,
+              let bundlePath = userInfo["bundlePath"] as? String else {
+            completionHandler(false)
+            return
+        }
+        
+        let appModel = DataManager.shared.model.apps.first(where: { $0.appInfo.relativeBundlePath == bundlePath })
+            ?? DataManager.shared.model.hiddenApps.first(where: { $0.appInfo.relativeBundlePath == bundlePath })
+        
+        if let appModel {
+            Task {
+                do {
+                    try await appModel.runApp()
+                    completionHandler(true)
+                } catch {
+                    completionHandler(false)
+                }
+            }
+        } else {
+            completionHandler(false)
+        }
+    }
+    
+    private func updateShortcutItems() {
+        let allApps = DataManager.shared.model.apps + DataManager.shared.model.hiddenApps
+        let shortcutItems = allApps.enumerated().map { index, appModel -> UIApplicationShortcutItem in
+            let bundlePath = appModel.appInfo.relativeBundlePath ?? "unknown"
+            let safeType = bundlePath.replacingOccurrences(of: "/", with: "_")
+                                     .replacingOccurrences(of: " ", with: "_")
+            let type = "com.kdt.livecontainer.shortcut.\(safeType)"
+            let icon = UIApplicationShortcutIcon(type: .play)
+            return UIApplicationShortcutItem(
+                type: type,
+                localizedTitle: appModel.displayName,
+                localizedSubtitle: appModel.version,
+                icon: icon,
+                userInfo: ["bundlePath": bundlePath]
+            )
+        }
+        // iOS limits the number of shortcut items (typically ~50)
+        application.shortcutItems = Array(shortcutItems.prefix(50))
     }
     
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
