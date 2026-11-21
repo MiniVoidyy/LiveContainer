@@ -20,7 +20,7 @@
             _info = [[NSMutableDictionary alloc] init];
         }
         if(!_infoPlist) {
-            _infoPlist = [[NSMutableDictionary alloc] init];
+            _info = [[NSMutableDictionary alloc] init];
         }
 
         // migrate old appInfo
@@ -466,6 +466,30 @@
 }
 - (void)setIsJITNeeded:(bool)isJITNeeded {
     _info[@"isJITNeeded"] = [NSNumber numberWithBool:isJITNeeded];
+    [self save];
+}
+
+- (bool)isJITEnabled {
+    return [_info[@"isJITEnabled"] boolValue];
+}
+- (void)setIsJITEnabled:(bool)isJITEnabled {
+    _info[@"isJITEnabled"] = [NSNumber numberWithBool:isJITEnabled];
+    [self save];
+}
+
+- (bool)waitForVPN {
+    return [_info[@"waitForVPN"] boolValue];
+}
+- (void)setWaitForVPN:(bool)waitForVPN {
+    _info[@"waitForVPN"] = [NSNumber numberWithBool:waitForVPN];
+    [self save];
+}
+
+- (NSString*)pairingFilePath {
+    return _info[@"pairingFilePath"];
+}
+- (void)setPairingFilePath:(NSString*)pairingFilePath {
+    _info[@"pairingFilePath"] = pairingFilePath;
     [self save];
 }
 
