@@ -7,13 +7,12 @@
 #import "LCUtils.h"
 #import "../../LiveContainer/LCSharedUtils.h"
 
-
 @implementation LCAppInfo
 
 - (instancetype)initWithBundlePath:(NSString*)bundlePath {
     self = [super init];
     self.isShared = false;
-	if(self) {
+    if(self) {
         _bundlePath = bundlePath;
         _infoPlist = [NSMutableDictionary dictionaryWithContentsOfFile:[NSString stringWithFormat:@"%@/Info.plist", bundlePath]];
         _info = [NSMutableDictionary dictionaryWithContentsOfFile:[NSString stringWithFormat:@"%@/LCAppInfo.plist", bundlePath]];
@@ -23,7 +22,7 @@
         if(!_infoPlist) {
             _infoPlist = [[NSMutableDictionary alloc] init];
         }
-        
+
         // migrate old appInfo
         if(_infoPlist[@"LCPatchRevision"] && [_info count] == 0) {
             NSArray* lcAppInfoKeys = @[
@@ -55,7 +54,7 @@
             [_infoPlist writeBinToFile:[NSString stringWithFormat:@"%@/Info.plist", bundlePath] atomically:YES];
             [self save];
         }
-        
+
         // fix bundle id and execName if crash when signing
         if (_infoPlist[@"LCBundleIdentifier"]) {
             _infoPlist[@"CFBundleExecutable"] = _infoPlist[@"LCBundleExecutable"];
@@ -93,7 +92,7 @@
             }
         }
     }
-    
+
     return urlSchemes;
 }
 
@@ -163,7 +162,7 @@
     } else {
         _info[@"LCSelectedLanguage"] = selectedLanguage;
     }
-    
+
     [self save];
 }
 
@@ -182,7 +181,7 @@
     } else if (_cachedIconDark && isDarkIcon) {
         return _cachedIconDark;
     }
-    
+
     // check if icon is cached on disk
     UIImage* uiIcon;
     NSString* cachedIconPath;
@@ -192,18 +191,18 @@
         cachedIconPath = [_bundlePath stringByAppendingPathComponent:@"LCAppIconLight.png"];
     }
     NSURL* cachedIconUrl = [NSURL fileURLWithPath:cachedIconPath];
-    
+
     if([NSFileManager.defaultManager fileExistsAtPath:cachedIconPath]) {
         CGImageRef imageRef = loadCGImageFromURL(cachedIconUrl);
         uiIcon = [UIImage imageWithCGImage:imageRef];
     }
-    
+
     // generate and save icon cache to disk
     if(!uiIcon) {
         uiIcon = [UIImage generateIconForBundleURL:[NSURL fileURLWithPath:_bundlePath] style:isDarkIcon hasBorder:YES];
         saveCGImage([uiIcon CGImage], cachedIconUrl);
     }
-    
+
     // cache icon to memory
     if(isDarkIcon) {
         _cachedIconDark = uiIcon;
@@ -212,7 +211,6 @@
     }
 
     return uiIcon;
-
 }
 
 - (void)clearIconCache {
@@ -251,9 +249,9 @@
     } else {
         appClipUrl = [NSString stringWithFormat:@"livecontainer://livecontainer-launch?bundle-name=%@", self.bundlePath.lastPathComponent];
     }
-    
+
     UIImage* icon = [self generateLiveContainerWrappedIconWithStyle:style];
-    
+
     NSDictionary *payload = @{
         @"FullScreen": @YES,
         @"Icon": UIImagePNGRepresentation(icon),
@@ -306,7 +304,7 @@
     }
     NSFileManager* fm = NSFileManager.defaultManager;
     NSString *execPath = [NSString stringWithFormat:@"%@/%@", appPath, _infoPlist[@"CFBundleExecutable"]];
-    
+
     // Update patch
     int currentPatchRev = 7;
     bool needPatch = [info[@"LCPatchRevision"] intValue] < currentPatchRev;
@@ -318,7 +316,7 @@
         [fm removeItemAtPath:execPath error:&err];
         [fm moveItemAtPath:backupPath toPath:execPath error:&err];
     }
-    
+
     bool is32bit = false;
     if (needPatch) {
         __block bool has64bitSlice = NO;
@@ -362,7 +360,7 @@
         }
         info[@"LCPatchRevision"] = @(currentPatchRev);
         forceSign = true;
-        
+
         [self save];
     }
 
@@ -376,44 +374,44 @@
     NSString* executablePath = [appPath stringByAppendingPathComponent:infoPlist[@"CFBundleExecutable"]];
     if(!forceSign) {
         bool signatureValid = checkCodeSignature(executablePath.UTF8String);
-        
+
         if(signatureValid) {
             [NSUserDefaults.standardUserDefaults removeObjectForKey:@"SigningInProgress"];
             completetionHandler(YES, nil);
             return;
         }
     }
-    
+
     if (!LCUtils.certificateData) {
         [NSUserDefaults.standardUserDefaults removeObjectForKey:@"SigningInProgress"];
         completetionHandler(NO, @"lc.signer.noCertificateFoundErr");
         return;
     }
-    
-    // Sign app if JIT-less is set up
-        NSURL *appPathURL = [NSURL fileURLWithPath:appPath];
-            void (^signCompletionHandler)(BOOL success, NSError *error)  = ^(BOOL success, NSError *_Nullable error) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [NSUserDefaults.standardUserDefaults removeObjectForKey:@"SigningInProgress"];
-                    if(!success) {
-                        completetionHandler(NO, error.localizedDescription);
-                    } else {
-                        bool signatureValid = checkCodeSignature(executablePath.UTF8String);
-                        if(signatureValid) {
-                            completetionHandler(YES, [error localizedDescription]);
-                        } else {
-                            completetionHandler(NO, @"lc.signer.latestCertificateInvalidErr");
-                        }
-                    }
-                    
-                });
-            };
-            
-            __block NSProgress *progress = [LCUtils signAppBundleWithZSign:appPathURL completionHandler:signCompletionHandler];
 
-            if (progress) {
-                progressHandler(progress);
+    // Sign app if JIT-less is set up
+    NSURL *appPathURL = [NSURL fileURLWithPath:appPath];
+    void (^signCompletionHandler)(BOOL success, NSError *error)  = ^(BOOL success, NSError *_Nullable error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [NSUserDefaults.standardUserDefaults removeObjectForKey:@"SigningInProgress"];
+            if(!success) {
+                completetionHandler(NO, error.localizedDescription);
+            } else {
+                bool signatureValid = checkCodeSignature(executablePath.UTF8String);
+                if(signatureValid) {
+                    completetionHandler(YES, [error localizedDescription]);
+                } else {
+                    completetionHandler(NO, @"lc.signer.latestCertificateInvalidErr");
+                }
             }
+
+        });
+    };
+
+    __block NSProgress *progress = [LCUtils signAppBundleWithZSign:appPathURL completionHandler:signCompletionHandler];
+
+    if (progress) {
+        progressHandler(progress);
+    }
 }
 
 - (NSString *)patchGuestExtensions {
@@ -432,7 +430,7 @@
         NSError *fileError = nil;
         [fm removeItemAtPath:temporaryPath error:nil];
         if (![fm copyItemAtPath:path toPath:temporaryPath error:&fileError]) return fileError.localizedDescription;
-        
+
         __block BOOL hasARM64 = NO;
         __block BOOL encrypted = NO;
         __block BOOL mismatch = NO;
@@ -466,26 +464,22 @@
         return NO;
     }
 }
+- (void)setIsJITNeeded:(bool)isJITNeeded {
+    _info[@"isJITNeeded"] = [NSNumber numberWithBool:isJITNeeded];
+    [self save];
+}
 
 - (bool)helperProcessesSupport {
     // Preserve settings saved before this feature was renamed.
     return [_info[@"helperProcessesSupport"] boolValue];
 }
-
 - (void)setHelperProcessesSupport:(bool)enabled {
     _info[@"helperProcessesSupport"] = @(enabled);
     [self save];
 }
-- (void)setIsJITNeeded:(bool)isJITNeeded {
-    _info[@"isJITNeeded"] = [NSNumber numberWithBool:isJITNeeded];
-    [self save];
-    
-}
-
 - (bool)classicMode {
     return [_info[@"classicMode"] boolValue];
 }
-
 - (void)setClassicMode:(bool)classicMode {
     _info[@"classicMode"] = @(classicMode);
 
@@ -533,7 +527,6 @@
 - (void)setIsLocked:(bool)isLocked {
     _info[@"isLocked"] = [NSNumber numberWithBool:isLocked];
     [self save];
-    
 }
 
 - (bool)isHidden {
@@ -546,7 +539,6 @@
 - (void)setIsHidden:(bool)isHidden {
     _info[@"isHidden"] = [NSNumber numberWithBool:isHidden];
     [self save];
-    
 }
 
 - (bool)doSymlinkInbox {
@@ -559,7 +551,6 @@
 - (void)setDoSymlinkInbox:(bool)doSymlinkInbox {
     _info[@"doSymlinkInbox"] = [NSNumber numberWithBool:doSymlinkInbox];
     [self save];
-    
 }
 
 - (bool)hideLiveContainer {
@@ -585,7 +576,7 @@
     if([_info[@"dontInjectTweakLoader"] boolValue] == dontInjectTweakLoader) {
         return;
     }
-    
+
     _info[@"dontInjectTweakLoader"] = [NSNumber numberWithBool:dontInjectTweakLoader];
     // we have to update patch to achieve this
     _info[@"LCPatchRevision"] = @(-1);
@@ -757,8 +748,8 @@
 - (void)setIs32bit:(bool)is32bit {
     _info[@"is32bit"] = [NSNumber numberWithBool:is32bit];
     [self save];
-    
 }
+
 - (bool)is32bitEmulator {
     return [_infoPlist[@"LC32BitTranslationLayer"] boolValue];
 }
@@ -773,7 +764,6 @@
 - (void)setDontSign:(bool)dontSign {
     _info[@"dontSign"] = [NSNumber numberWithBool:dontSign];
     [self save];
-    
 }
 
 - (NSString *)jitLaunchScriptJs {
@@ -849,6 +839,27 @@
 
 - (void)setInstallationDate:(NSDate*)installationDate {
     _info[@"installationDate"] = installationDate;
+    [self save];
+}
+
+- (NSUInteger)launchCount {
+    return [_info[@"launchCount"] unsignedIntegerValue];
+}
+
+- (void)setLaunchCount:(NSUInteger)launchCount {
+    _info[@"launchCount"] = @(launchCount);
+    [self save];
+}
+
+- (bool)isFavorite {
+    if(_info[@"isFavorite"] != nil) {
+        return [_info[@"isFavorite"] boolValue];
+    } else {
+        return NO;
+    }
+}
+- (void)setIsFavorite:(bool)isFavorite {
+    _info[@"isFavorite"] = [NSNumber numberWithBool:isFavorite];
     [self save];
 }
 
