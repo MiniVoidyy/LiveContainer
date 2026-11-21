@@ -23,6 +23,25 @@ class LCAppModel: ObservableObject, Hashable {
             appInfo.isJITNeeded = uiIsJITNeeded
         }
     }
+    /// Per-app JIT enable — user toggles this on to use JIT for this app.
+    /// When on, launching the app will go through the JIT path (pairing file + VPN).
+    @Published var uiIsJITEnabled : Bool {
+        didSet {
+            appInfo.isJITEnabled = uiIsJITEnabled
+        }
+    }
+    /// When on, launch waits for LocalDevVPN to connect before attaching JIT.
+    @Published var uiWaitForVPN : Bool {
+        didSet {
+            appInfo.waitForVPN = uiWaitForVPN
+        }
+    }
+    /// Path to the user's pairing file (selected via document picker).
+    @Published var uiPairingFilePath : String? {
+        didSet {
+            appInfo.pairingFilePath = uiPairingFilePath
+        }
+    }
     @Published var uiHelperProcessesSupport: Bool {
         didSet {
             appInfo.helperProcessesSupport = uiHelperProcessesSupport
@@ -178,6 +197,9 @@ class LCAppModel: ObservableObject, Hashable {
         }
         
         self.uiIsJITNeeded = appInfo.isJITNeeded
+        self.uiIsJITEnabled = appInfo.isJITEnabled
+        self.uiWaitForVPN = appInfo.waitForVPN
+        self.uiPairingFilePath = appInfo.pairingFilePath
         self.uiHelperProcessesSupport = appInfo.helperProcessesSupport
         self.uiClassicMode = appInfo.classicMode
         self.uiIsHidden = appInfo.isHidden
@@ -344,7 +366,8 @@ class LCAppModel: ObservableObject, Hashable {
         }
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
         
-        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit
+        // Per-app JIT: use uiIsJITEnabled when set; otherwise fall back to isJITNeeded/is32bit.
+        var jitNeeded = uiIsJITEnabled ? true : (appInfo.isJITNeeded || appInfo.is32bit)
         if let forceJIT {
             jitNeeded = forceJIT
         }
@@ -364,7 +387,8 @@ class LCAppModel: ObservableObject, Hashable {
                             return
                         }
                         Task {
-                            if let scriptData = self.jitLaunchScriptJs, !scriptData.isEmpty {
+                            let scriptData = jitLaunchScriptJs ?? appInfo.jitLaunchScriptJs
+                            if !scriptData.isEmpty {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: scriptData, appName: self.appInfo.displayName())
                             } else {
                                 await self.delegate?.jitLaunch(withPID: pidNumber.intValue, withScript: nil, appName: self.appInfo.displayName())
@@ -374,8 +398,9 @@ class LCAppModel: ObservableObject, Hashable {
                     }
                 }
             } else {
-                // Non-multitask JIT flow remains unchanged
-                if let scriptData = jitLaunchScriptJs, !scriptData.isEmpty {
+                // Non-multitask JIT flow — pass pairing file path and waitForVPN to the delegate.
+                let scriptData = jitLaunchScriptJs ?? appInfo.jitLaunchScriptJs
+                if !scriptData.isEmpty {
                     await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
                 } else {
                     await delegate?.jitLaunch(appName: self.appInfo.displayName(), classicMode: classicMode)
@@ -431,6 +456,7 @@ class LCAppModel: ObservableObject, Hashable {
     /// Faster launch path for home screen shortcuts — skips re-signing and
     /// multitask checks, goes straight to launching the guest app.
     /// Assumes the app is already signed (which it is after installation).
+    /// Uses per-app JIT settings (isJITEnabled, pairingFilePath, waitForVPN).
     func fastLaunch() async throws {
         if isAppRunning {
             return
@@ -463,13 +489,15 @@ class LCAppModel: ObservableObject, Hashable {
         UserDefaults.standard.set(self.appInfo.relativeBundlePath, forKey: "selected")
         UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
 
-        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit
+        // Per-app JIT: honor uiIsJITEnabled even for shortcut launches.
+        var jitNeeded = uiIsJITEnabled ? true : (appInfo.isJITNeeded || appInfo.is32bit)
 #if targetEnvironment(simulator)
         jitNeeded = false
 #endif
 
         if jitNeeded {
-            if let scriptData = jitLaunchScriptJs, !scriptData.isEmpty {
+            let scriptData = jitLaunchScriptJs ?? appInfo.jitLaunchScriptJs
+            if !scriptData.isEmpty {
                 await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
             } else {
                 await delegate?.jitLaunch(appName: self.appInfo.displayName(), classicMode: classicMode)
@@ -678,6 +706,9 @@ class LCAppModel: ObservableObject, Hashable {
         toAppInfo.fixBackgroundTaskIdentifiers = fromApp.appInfo.fixBackgroundTaskIdentifiers
         
         toAppInfo.isJITNeeded = fromApp.appInfo.isJITNeeded
+        toAppInfo.isJITEnabled = fromApp.appInfo.isJITEnabled
+        toAppInfo.waitForVPN = fromApp.appInfo.waitForVPN
+        toAppInfo.pairingFilePath = fromApp.appInfo.pairingFilePath
         toAppInfo.jitLaunchScriptJs = fromApp.appInfo.jitLaunchScriptJs
         toAppInfo.helperProcessesSupport = fromApp.appInfo.helperProcessesSupport
         
