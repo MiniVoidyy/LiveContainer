@@ -23,6 +23,9 @@ typedef NS_ENUM(NSInteger, MultitaskSpecified){
 @property NSString* relativeBundlePath;
 @property bool isShared;
 @property bool isJITNeeded;
+@property bool isJITEnabled;
+@property bool waitForVPN;
+@property (nonatomic, strong) NSString* pairingFilePath;
 @property bool helperProcessesSupport;
 @property bool classicMode;
 @property (nonatomic, readonly) NSUInteger defaultClassicMode;
