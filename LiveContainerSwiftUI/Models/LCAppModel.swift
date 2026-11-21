@@ -428,6 +428,66 @@ class LCAppModel: ObservableObject, Hashable {
         return results
     }
 
+    /// Faster launch path for home screen shortcuts — skips re-signing and
+    /// multitask checks, goes straight to launching the guest app.
+    /// Assumes the app is already signed (which it is after installation).
+    func fastLaunch() async throws {
+        if isAppRunning {
+            return
+        }
+
+        // Ensure a container exists
+        if uiContainers.isEmpty {
+            let newName = NSUUID().uuidString
+            let newContainer = LCContainer(folderName: newName, name: newName, isShared: uiIsShared)
+            uiContainers.append(newContainer)
+            uiSelectedContainer = newContainer
+            appInfo.containers = uiContainers
+            newContainer.makeLCContainerInfoPlist(appIdentifier: appInfo.bundleIdentifier()!, keychainGroupId: Int.random(in: 0..<SharedModel.keychainAccessGroupCount))
+            appInfo.dataUUID = newName
+            uiDefaultDataFolder = newName
+        }
+
+        let classicMode = appInfo.defaultClassicMode
+
+        await MainActor.run {
+            isAppRunning = true
+        }
+        defer {
+            Task { await MainActor.run {
+                isAppRunning = false
+            }}
+        }
+
+        // Skip re-signing — app is already signed after installation
+        UserDefaults.standard.set(self.appInfo.relativeBundlePath, forKey: "selected")
+        UserDefaults.standard.set(uiSelectedContainer?.folderName, forKey: "selectedContainer")
+
+        var jitNeeded = appInfo.isJITNeeded || appInfo.is32bit
+#if targetEnvironment(simulator)
+        jitNeeded = false
+#endif
+
+        if jitNeeded {
+            if let scriptData = jitLaunchScriptJs, !scriptData.isEmpty {
+                await delegate?.jitLaunch(withScript: scriptData, appName: self.appInfo.displayName(), classicMode: classicMode)
+            } else {
+                await delegate?.jitLaunch(appName: self.appInfo.displayName(), classicMode: classicMode)
+            }
+        } else {
+            if #available(iOS 26.0, *), FileManager.default.fileExists(atPath: "\(appInfo.bundlePath()!)/Frameworks/MetalANGLE.framework/MetalANGLE") {
+                let fileContents = "\(appInfo.bundlePath()!)/Frameworks/MetalANGLE.framework/MetalANGLE".data(using: .utf8)
+                let fileURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("preloadLibraries.txt")
+                try fileContents?.write(to: fileURL)
+            }
+            LCSharedUtils.launchToGuestApp(withClassicMode: classicMode)
+        }
+
+        appInfo.lastLaunched = Date()
+        appInfo.launchCount = (appInfo.launchCount ?? 0) + 1
+        appInfo.save()
+    }
+
     /// Toggle favorite state for this app. Favorites can be pinned to the top of app lists.
     func toggleFavorite() {
         appInfo.isFavorite.toggle()
