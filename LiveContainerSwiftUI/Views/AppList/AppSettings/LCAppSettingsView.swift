@@ -249,7 +249,7 @@ struct LCAppSettingsView: View {
                 if model.uiIs32bit {
                     Picker(selection: $model.uiSelected32BitEmulator) {
                         ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
-                            Text("lc.common.default".loc).tag("")
+                            Text("lc.common.default").tag("")
                             Text(app.appInfo.displayName()).tag(app.appInfo.relativeBundlePath!)
                         }
                     } label: {
@@ -281,7 +281,7 @@ struct LCAppSettingsView: View {
                     .transition(.opacity.combined(with: .slide))
                 }
                 // Favorite toggle — pins app to top of app lists and shortcut ordering.
-                Toggle(isOn: $model.isFavorite) {
+                Toggle(isOn: $model.uiIsFavorite) {
                     Text("lc.appSettings.favorite".loc)
                 }
                 .help("lc.appSettings.favoriteDesc".loc)
@@ -295,8 +295,8 @@ struct LCAppSettingsView: View {
             if #available(iOS 16.0, *) {
                 Section {
                     Picker(selection: $model.uiIsMultitaskModeSpecificed) {
-                        Text("lc.common.default".loc).tag(MultitaskSpecified.default)
-                        Text("lc.common.no".loc).tag(MultitaskSpecified.no)
+                        Text("lc.common.default").tag(MultitaskSpecified.default)
+                        Text("lc.common.no").tag(MultitaskSpecified.no)
                         Text("lc.common.yes".loc).tag(MultitaskSpecified.yes)
                     } label: {
                         Text("lc.appBanner.multitask".loc)
@@ -309,12 +309,12 @@ struct LCAppSettingsView: View {
                     if let supportedLanguage = model.supportedLanguages {
                         Form {
                             Picker(selection: $model.uiSelectedLanguage) {
-                                Text("lc.common.auto".loc).tag("")
+                                Text("lc.common.auto").tag("")
                                 ForEach(supportedLanguage, id:\.self) { language in
                                     if language != "Base" {
                                         VStack(alignment: .leading) {
                                             Text(Locale(identifier: language).localizedString(forIdentifier: language) ?? language)
-                                            Text("\(Locale.current.localizedString(forIdentifier: language) ?? "") - \(language)")
+                                            Text("\(Locale.current.localizedString(forIdentifier: language) ?? \"") - \(language)")
                                                 .font(.footnote)
                                                 .foregroundStyle(.gray)
                                         }
@@ -371,7 +371,7 @@ struct LCAppSettingsView: View {
             if SharedModel.isPhone {
                 Section {
                     Picker(selection: $model.uiOrientationLock) {
-                        Text("lc.common.disabled".loc).tag(LCOrientationLock.Disabled)
+                        Text("lc.common.disabled").tag(LCOrientationLock.Disabled)
                         Text("lc.apppSettings.orientationLock.landscape".loc).tag(LCOrientationLock.Landscape)
                         Text("lc.apppSettings.orientationLock.portrait".loc).tag(LCOrientationLock.Portrait)
                     } label: {
@@ -503,7 +503,7 @@ struct LCAppSettingsView: View {
                 Text("lc.common.move".loc)
             }
             Button("lc.common.cancel".loc, role: .cancel) {
-                self.moveToPrivateDocAlert.close(result: false)
+                self.moveToAppGroupAlert.close(result: false)
             }
         } message: {
             Text("lc.appSettings.toPrivateAppDesc".loc)
@@ -848,7 +848,7 @@ extension LCAppSettingsView : LCContainerViewDelegate {
         do {
             let doExist = fm.fileExists(atPath: preferencesFolderUrl.path)
             if !doExist {
-                try fm.createDirectory(at: preferencesFolderUrl, withIntermediateDirectories: true)
+                try fm.createDirectory(at: preferencesFolderUrl.path)
             }
         } catch {
             errorInfo = "Cannot create Library/Preferences folder!".loc
