@@ -78,7 +78,7 @@ import Intents
             )
         }
         // iOS limits the number of shortcut items (typically ~50)
-        application.shortcutItems = Array(shortcutItems.prefix(50))
+        UIApplication.shared.shortcutItems = Array(shortcutItems.prefix(50))
     }
     
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
